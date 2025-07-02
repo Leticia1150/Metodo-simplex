@@ -1,0 +1,96 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Construcción de la tabla simplex inicial
+A = np.array([
+    [4, 2, 1, 0],
+    [2, 3, 0, 1]
+], dtype=float)
+
+b = np.array([100, 90], dtype=float)
+
+# Coeficientes de la función objetivo (signos negativos)
+c = np.array([-60, -80, 0, 0], dtype=float)
+
+# Construcción de la tabla simplex (matriz extendida)
+tabla = np.hstack((A, b.reshape(-1,1)))  # coef + RHS
+tabla = np.vstack((tabla, np.append(c, 0)))  # última fila: función objetivo
+
+def imprimir_tabla(tabla):
+    print("\nTabla Simplex:")
+    for fila in tabla:
+        print([round(x, 2) for x in fila])
+
+def pivotear(tabla, fila_pivote, col_pivote):
+    tabla[fila_pivote] /= tabla[fila_pivote][col_pivote]
+    for i in range(len(tabla)):
+        if i != fila_pivote:
+            tabla[i] -= tabla[i][col_pivote] * tabla[fila_pivote]
+
+def simplex(tabla):
+    iteracion = 0
+    while any(tabla[-1, :-1] < 0):
+        iteracion += 1
+        print(f"\n--- Iteración {iteracion} ---")
+        imprimir_tabla(tabla)
+
+        # Columna pivote: más negativo en la fila objetivo
+        col_pivote = np.argmin(tabla[-1, :-1])
+
+        # Razones para encontrar fila pivote
+        razones = []
+        for i in range(len(tabla)-1):
+            if tabla[i][col_pivote] > 0:
+                razones.append(tabla[i][-1] / tabla[i][col_pivote])
+            else:
+                razones.append(np.inf)
+
+        fila_pivote = np.argmin(razones)
+
+        if razones[fila_pivote] == np.inf:
+            raise Exception("Solución no acotada")
+
+        pivotear(tabla, fila_pivote, col_pivote)
+
+    imprimir_tabla(tabla)
+
+    z = tabla[-1, -1]
+    x = 0
+    y = 0
+    # Identificar variables básicas (columnas con un 1 y ceros)
+    for i in range(len(tabla)-1):
+        if tabla[i][0] == 1 and all(tabla[j][0] == 0 for j in range(len(tabla)-1) if j != i):
+            x = tabla[i][-1]
+        if tabla[i][1] == 1 and all(tabla[j][1] == 0 for j in range(len(tabla)-1) if j != i):
+            y = tabla[i][-1]
+
+    print("\nResultado óptimo:")
+    print(f"x = {x}")
+    print(f"y = {y}")
+    print(f"Z = {z}")
+
+    return x, y, z
+
+# Resolver el problema
+x_opt, y_opt, z_opt = simplex(tabla)
+
+# Graficar región factible y solución óptima
+x_vals = np.linspace(0, 30, 300)
+y1 = (100 - 4*x_vals) / 2
+y2 = (90 - 2*x_vals) / 3
+
+plt.figure(figsize=(8,6))
+plt.plot(x_vals, y1, label=r'$4x + 2y \leq 100$')
+plt.plot(x_vals, y2, label=r'$2x + 3y \leq 90$')
+
+plt.fill_between(x_vals, 0, np.minimum(y1, y2), where=(y1>0) & (y2>0), color='lightblue', alpha=0.5)
+
+plt.plot(x_opt, y_opt, 'ro', label=f'Solución óptima\nx={x_opt:.2f}, y={y_opt:.2f}')
+plt.xlim(0, 30)
+plt.ylim(0, 40)
+plt.xlabel('x')
+plt.ylabel('y')
+plt.title('Región factible y solución óptima')
+plt.legend()
+plt.grid(True)
+plt.show()
